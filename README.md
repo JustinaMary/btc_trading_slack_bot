@@ -1,4 +1,4 @@
-# techno-boto-slack
+# btc-trading-slack-bot
 
 A simple bot that can be added to your own Slack server.
 
