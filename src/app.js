@@ -16,7 +16,6 @@ const app = new App({
 });
 
 app.message(async ({ message, say }) => {
-  console.log("message", message);
   var textMsg = message.text.toLowerCase();
   if (textMsg == "hi" || textMsg == "hello" || textMsg == "hey") {
     await hello(say, message);
@@ -146,6 +145,18 @@ async function invoke_btc_signal(equity) {
 
 function isNumberCheck(text) {
   return !isNaN(text);
+}
+app.client.on("disconnect", async () => {
+  await startBot();
+});
+
+async function startBot() {
+  try {
+    await app.start(5000);
+  } catch (error) {
+    console.error("Error starting the bot:", error);
+    setTimeout(startBot, 5000); // Retry after 5 seconds
+  }
 }
 
 // Start the app
