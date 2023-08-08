@@ -1,53 +1,163 @@
-import { RTMClient } from "@slack/rtm-api";
-import { SLACK_OAUTH_TOKEN, BTC_SIGNAL } from "./constants";
-import { WebClient } from "@slack/web-api";
-const packageJson = require("../package.json");
+const { App } = require("@slack/bolt");
+import {
+  SLACK_OAUTH_TOKEN,
+  BTC_SIGNAL,
+  SIGNING_SECRET,
+  SLACK_APP_TOKEN,
+} from "./constants";
+const axios = require("axios");
 
-const rtm = new RTMClient(SLACK_OAUTH_TOKEN);
-const web = new WebClient(SLACK_OAUTH_TOKEN);
-
-rtm.start().catch(console.error);
-
-rtm.on("ready", async () => {
-  console.log("bot started");
-  sendMessage(BTC_SIGNAL, `Bot version ${packageJson.version} is online.`);
+// Initialize your app with your bot token
+const app = new App({
+  token: SLACK_OAUTH_TOKEN,
+  signingSecret: SIGNING_SECRET,
+  socketMode: true,
+  appToken: SLACK_APP_TOKEN,
 });
 
-rtm.on("slack_event", async (eventType, event) => {
-  if (event && event.type === "message") {
-    if (event.text === "!hello") {
-      hello(event.channel, event.user);
-    }
-    if (isNumberCheck(event.text)) {
-      invoke_btc_signal(parseInt(event.text), event.channel, event.user);
-    }
+app.message(async ({ message, say }) => {
+  console.log("message", message);
+  var textMsg = message.text.toLowerCase();
+  if (textMsg == "hi" || textMsg == "hello" || textMsg == "hey") {
+    await hello(say, message);
+  }
+  if (isNumberCheck(textMsg)) {
+    await invoke_btc_signal(parseInt(textMsg));
   }
 });
 
-function hello(channelId, userId) {
-  sendMessage(
-    channelId,
-    `Heya! <@${userId}>\nPlease enter your current portfolio size`
-  );
+async function hello(say, message) {
+  // say() sends a message to the channel where the event was triggered
+  await say({
+    text: `Hey there <@${message.user}>!\nPlease enter your current portfolio size`,
+  });
 }
 
-async function invoke_btc_signal(equity, channelId, userId) {
+async function invoke_btc_signal(equity) {
   // Make API request with parameters
   const apiUrl = `https://btc-trading-api-new.onrender.com/api/get_data/${equity}`;
   const response = await axios.get(apiUrl);
-  const responseText = `User <@${userId}> requested data for equity: ${equity}\nAPI Response: \nAverage Entry: ${response.average_entry}\nAverage Exit: ${response.average_exit}
- \nCurrent Equity: ${response.current_equity}\nPercent Returns: ${response.percent_returns}\nPosition Size: ${response.position_size}\nPrice: ${response.price}\nRealized PNL: ${response.realized_pnl}
- \nStarting Equity: ${response.starting_equity}\nSymbol: ${response.symbol}\nTotal PNL: ${response.total_pnl}\nUnrealized PNL: ${response.unrealized_pnl}`;
-  sendMessage(channelId, responseText);
-}
-
-async function sendMessage(channel, message) {
-  await web.chat.postMessage({
-    channel: channel,
-    text: message,
-  });
+  try {
+    await app.client.chat.postMessage({
+      token: SLACK_OAUTH_TOKEN,
+      channel: BTC_SIGNAL, // Replace with your channel ID
+      blocks: [
+        {
+          type: "header",
+          text: {
+            type: "plain_text",
+            text: `Requested data for equity: ${equity}`,
+            emoji: true,
+          },
+        },
+        {
+          type: "section",
+          fields: [
+            {
+              type: "mrkdwn",
+              text: `*Price:*\n${response.data.price}`,
+            },
+          ],
+        },
+        {
+          type: "section",
+          fields: [
+            {
+              type: "mrkdwn",
+              text: `*Average Entry:*\n${response.data.average_entry}`,
+            },
+            {
+              type: "mrkdwn",
+              text: `*Average Exit:*\n${response.data.average_exit}`,
+            },
+          ],
+        },
+        {
+          type: "section",
+          fields: [
+            {
+              type: "mrkdwn",
+              text: `*Current Equity:*\n${response.data.current_equity}`,
+            },
+            {
+              type: "mrkdwn",
+              text: `*Percent Returns:*\n${response.data.percent_returns}`,
+            },
+          ],
+        },
+        {
+          type: "section",
+          fields: [
+            {
+              type: "mrkdwn",
+              text: `*Position Size:*\n${response.data.position_size}`,
+            },
+            {
+              type: "mrkdwn",
+              text: `*Unrealized PNL:*\n${response.data.unrealized_pnl}`,
+            },
+          ],
+        },
+        {
+          type: "section",
+          fields: [
+            {
+              type: "mrkdwn",
+              text: `*Realized PNL:*\n${response.data.realized_pnl}`,
+            },
+            {
+              type: "mrkdwn",
+              text: `*Starting Equity:*\n${response.data.starting_equity}`,
+            },
+          ],
+        },
+        {
+          type: "section",
+          fields: [
+            {
+              type: "mrkdwn",
+              text: `*Symbol:*\n${response.data.symbol}`,
+            },
+            {
+              type: "mrkdwn",
+              text: `*Total PNL:*\n${response.data.total_pnl}`,
+            },
+          ],
+        },
+        {
+          type: "section",
+          fields: [
+            {
+              type: "mrkdwn",
+              text: `*Message:*\n${response.data.message}`,
+            },
+            {
+              type: "mrkdwn",
+              text: `*Remaining Time:*\n${response.data.remaining_time}`,
+            },
+          ],
+        },
+      ],
+    });
+  } catch (error) {
+    console.error("Error sending signal response:", error);
+  }
 }
 
 function isNumberCheck(text) {
   return !isNaN(text);
 }
+
+// Start the app
+(async () => {
+  await app.start(5000);
+  try {
+    await app.client.chat.postMessage({
+      token: SLACK_OAUTH_TOKEN,
+      channel: BTC_SIGNAL, // Replace with your channel ID
+      text: "Bot is now online and ready to assist!",
+    });
+  } catch (error) {
+    console.error("Error sending welcome message:", error);
+  }
+})();
