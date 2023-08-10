@@ -6,6 +6,12 @@ import {
   SLACK_APP_TOKEN,
 } from "./constants";
 const axios = require("axios");
+const cron = require("node-cron");
+
+// Scheduled the  btc signal to run every 8 hours
+cron.schedule("0 */8 * * *", async () => {
+  await invoke_btc_signal();
+});
 
 // Initialize your app with your bot token
 const app = new App({
@@ -15,124 +21,42 @@ const app = new App({
   appToken: SLACK_APP_TOKEN,
 });
 
-app.message(async ({ message, say }) => {
-  var textMsg = message.text.toLowerCase();
-  if (textMsg == "hi" || textMsg == "hello" || textMsg == "hey") {
-    await hello(say, message);
-  }
-  if (isNumberCheck(textMsg)) {
-    await invoke_btc_signal(parseInt(textMsg));
-  }
-});
+// app.message(async ({ message, say }) => {
+//   var textMsg = message.text.toLowerCase();
+//   if (textMsg == "hi" || textMsg == "hello" || textMsg == "hey") {
+//     await hello(say, message);
+//   }
+//   if (isNumberCheck(textMsg)) {
+//     await invoke_btc_signal(parseInt(textMsg));
+//   }
+// });
 
-async function hello(say, message) {
-  // say() sends a message to the channel where the event was triggered
-  await say({
-    text: `Hey there <@${message.user}>!\nPlease enter your current portfolio size`,
-  });
-}
+// async function hello(say, message) {
+//   // say() sends a message to the channel where the event was triggered
+//   await say({
+//     text: `Hey there <@${message.user}>!\nPlease enter your current portfolio size`,
+//   });
+// }
 
-async function invoke_btc_signal(equity) {
-  // Make API request with parameters
-  const apiUrl = `https://btc-trading-api-new.onrender.com/api/get_data/${equity}`;
+async function invoke_btc_signal() {
+  const apiUrl = `https://btc-trading-api-new.onrender.com/api/get_data`;
   const response = await axios.get(apiUrl);
   try {
     await app.client.chat.postMessage({
       token: SLACK_OAUTH_TOKEN,
       channel: BTC_SIGNAL, // Replace with your channel ID
+      text: `BTCUSDT *${response.data.signal.toUpperCase()}* Signal! *Price:* ${
+        response.data.price
+      }`,
       blocks: [
         {
-          type: "header",
-          text: {
-            type: "plain_text",
-            text: `Requested data for equity: ${equity}`,
-            emoji: true,
-          },
-        },
-        {
           type: "section",
           fields: [
             {
               type: "mrkdwn",
-              text: `*Price:*\n${response.data.price}`,
-            },
-          ],
-        },
-        {
-          type: "section",
-          fields: [
-            {
-              type: "mrkdwn",
-              text: `*Average Entry:*\n${response.data.average_entry}`,
-            },
-            {
-              type: "mrkdwn",
-              text: `*Average Exit:*\n${response.data.average_exit}`,
-            },
-          ],
-        },
-        {
-          type: "section",
-          fields: [
-            {
-              type: "mrkdwn",
-              text: `*Current Equity:*\n${response.data.current_equity}`,
-            },
-            {
-              type: "mrkdwn",
-              text: `*Percent Returns:*\n${response.data.percent_returns}`,
-            },
-          ],
-        },
-        {
-          type: "section",
-          fields: [
-            {
-              type: "mrkdwn",
-              text: `*Position Size:*\n${response.data.position_size}`,
-            },
-            {
-              type: "mrkdwn",
-              text: `*Unrealized PNL:*\n${response.data.unrealized_pnl}`,
-            },
-          ],
-        },
-        {
-          type: "section",
-          fields: [
-            {
-              type: "mrkdwn",
-              text: `*Realized PNL:*\n${response.data.realized_pnl}`,
-            },
-            {
-              type: "mrkdwn",
-              text: `*Starting Equity:*\n${response.data.starting_equity}`,
-            },
-          ],
-        },
-        {
-          type: "section",
-          fields: [
-            {
-              type: "mrkdwn",
-              text: `*Symbol:*\n${response.data.symbol}`,
-            },
-            {
-              type: "mrkdwn",
-              text: `*Total PNL:*\n${response.data.total_pnl}`,
-            },
-          ],
-        },
-        {
-          type: "section",
-          fields: [
-            {
-              type: "mrkdwn",
-              text: `*Message:*\n${response.data.message}`,
-            },
-            {
-              type: "mrkdwn",
-              text: `*Remaining Time:*\n${response.data.remaining_time}`,
+              text: `BTCUSDT *${response.data.signal.toUpperCase()}* Signal! *Price:* ${
+                response.data.price
+              }`,
             },
           ],
         },
@@ -140,19 +64,18 @@ async function invoke_btc_signal(equity) {
     });
   } catch (error) {
     console.error("Error sending signal response:", error);
+    await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait for the specified time (e.g., 5 seconds)
+    await invoke_btc_signal(); // Call the method again
   }
 }
 
-function isNumberCheck(text) {
-  return !isNaN(text);
-}
 app.client.on("disconnect", async () => {
   await startBot();
 });
 
 async function startBot() {
   try {
-    await app.start(5000);
+    await app.start();
   } catch (error) {
     console.error("Error starting the bot:", error);
     setTimeout(startBot, 5000); // Retry after 5 seconds
@@ -161,14 +84,10 @@ async function startBot() {
 
 // Start the app
 (async () => {
-  await app.start(5000);
+  await app.start();
   try {
-    await app.client.chat.postMessage({
-      token: SLACK_OAUTH_TOKEN,
-      channel: BTC_SIGNAL, // Replace with your channel ID
-      text: "Bot is now online and ready to assist!",
-    });
+    await invoke_btc_signal();
   } catch (error) {
-    console.error("Error sending welcome message:", error);
+    console.error("Error starting the bot..", error);
   }
 })();

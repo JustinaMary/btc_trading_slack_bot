@@ -13,6 +13,7 @@
     "@slack/bolt": "^3.13.3",
     "@slack/rtm-api": "^6.1.0",
     "@slack/web-api": "^5.10.0",
-    "esm": "^3.2.25"
+    "esm": "^3.2.25",
+    "node-cron": "^3.0.2"
   }
 }
