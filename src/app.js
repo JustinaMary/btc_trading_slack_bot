@@ -75,7 +75,7 @@ app.client.on("disconnect", async () => {
 
 async function startBot() {
   try {
-    await app.start();
+    await app.start(3001);
   } catch (error) {
     console.error("Error starting the bot:", error);
     setTimeout(startBot, 5000); // Retry after 5 seconds
@@ -84,7 +84,7 @@ async function startBot() {
 
 // Start the app
 (async () => {
-  await app.start();
+  await app.start(3001);
   try {
     await invoke_btc_signal();
   } catch (error) {
