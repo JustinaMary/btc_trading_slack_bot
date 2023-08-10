@@ -8,17 +8,17 @@ import {
 const axios = require("axios");
 const cron = require("node-cron");
 
-// Scheduled the  btc signal to run every 8 hours
-cron.schedule("0 */8 * * *", async () => {
-  await invoke_btc_signal();
-});
-
 // Initialize your app with your bot token
 const app = new App({
   token: SLACK_OAUTH_TOKEN,
   signingSecret: SIGNING_SECRET,
   socketMode: true,
   appToken: SLACK_APP_TOKEN,
+});
+
+// Scheduled the  btc signal to run every 8 hours
+cron.schedule("0 */8 * * *", async () => {
+  await invoke_btc_signal();
 });
 
 // app.message(async ({ message, say }) => {
